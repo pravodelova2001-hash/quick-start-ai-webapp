@@ -52,10 +52,13 @@
   .mod-bullets{list-style:none;margin:10px 0 0;padding:0;font-size:.82rem;color:var(--fg-dim)}
   .mod-bullets li{padding-left:14px;position:relative;margin-top:5px}
   .mod-bullets li::before{content:'';position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--lime-dim)}
-  .custom-link{
-    display:block;text-align:center;color:var(--fg-dim);font-size:.86rem;margin:14px 0 4px;
-    text-decoration:underline;background:none;border:none;cursor:pointer;font-family:var(--font-body);width:100%;
+  .mod-custom{margin-top:4px}
+  .arrow{
+    width:22px;height:22px;border-radius:50%;border:1.5px solid var(--glass-border);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--fg-dim);
+    transition:border-color .15s,color .15s;
   }
+  .mod-custom:active .arrow{border-color:var(--lime);color:var(--lime)}
   .bar{
     position:fixed;left:0;right:0;bottom:0;background:rgba(20,20,20,.92);backdrop-filter:blur(16px);
     border-top:1px solid var(--glass-border);padding:14px 16px calc(14px + env(safe-area-inset-bottom));
@@ -87,8 +90,6 @@
 </div>
 
 <div id="modules"></div>
-
-<button class="custom-link" id="customBtn">🎯 Нужен индивидуальный пакет — от 3990 ₽/мес</button>
 
 <div class="bar">
   <div class="bar-row">
@@ -140,6 +141,21 @@
     grid.appendChild(el);
   });
 
+  // Индивидуальный пакет — в той же карточной вёрстке, что и готовые
+  // модули, но это не переключатель, а отдельное действие: нажали — заявка
+  // ушла сразу, без выбора модулей и без цены в этой форме.
+  var customCard = document.createElement('div');
+  customCard.className = 'mod mod-custom';
+  customCard.innerHTML =
+    '<div class="mod-top">' +
+      '<div class="mod-title">🎯 Индивидуальный пакет</div>' +
+      '<div class="arrow" aria-hidden="true">→</div>' +
+    '</div>' +
+    '<div class="mod-desc">Если нужное не укладывается в 4 модуля — собираем решение с нуля под вашу задачу, не по шаблону.</div>' +
+    '<ul class="mod-bullets"><li>От 3990 ₽/мес — точная сумма обсуждается отдельно</li></ul>';
+  customCard.addEventListener('click', submitCustom);
+  grid.appendChild(customCard);
+
   var priceEl = document.getElementById('price');
   var submitBtn = document.getElementById('submitBtn');
 
@@ -164,11 +180,11 @@
   }
   submitBtn.addEventListener('click', submit);
 
-  document.getElementById('customBtn').addEventListener('click', function () {
+  function submitCustom() {
     var payload = JSON.stringify({ type: 'custom' });
     if (tg) { tg.sendData(payload); tg.close(); }
     else { alert('Открыть это можно только из Telegram-бота.'); }
-  });
+  }
 
   document.getElementById('howBtn').addEventListener('click', function () {
     document.getElementById('howBox').classList.toggle('open');
