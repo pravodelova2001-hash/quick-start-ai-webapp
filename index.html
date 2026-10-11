@@ -151,14 +151,6 @@
       submitBtn.disabled = false;
       submitBtn.textContent = 'Готово → ' + price.toLocaleString('ru-RU') + ' ₽/мес';
     }
-    if (tg) {
-      if (selected.length > 0) {
-        tg.MainButton.setText('Готово → ' + price.toLocaleString('ru-RU') + ' ₽/мес');
-        tg.MainButton.show();
-      } else {
-        tg.MainButton.hide();
-      }
-    }
   }
   render();
 
@@ -169,7 +161,6 @@
     else { alert('Открыть это можно только из Telegram-бота.'); }
   }
   submitBtn.addEventListener('click', submit);
-  if (tg) tg.MainButton.onClick(submit);
 
   document.getElementById('customBtn').addEventListener('click', function () {
     var payload = JSON.stringify({ type: 'custom' });
