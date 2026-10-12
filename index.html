@@ -127,10 +127,8 @@
   ];
   var PRICE_BY_COUNT = { 0: 0, 1: 990, 2: 1490, 3: 1790, 4: 1990 };
 
-  // Адрес бота — он же отдаёт /pricing.json. Подставьте настоящий хост
-  // сервиса на Render (без него просто всегда используется запасной
-  // вариант выше, страница по-прежнему работает).
-  var PRICING_API_URL = 'https://ЗАМЕНИТЬ-НА-ХОСТ-БОТА.onrender.com/pricing.json';
+  // Адрес бота — он же отдаёт /pricing.json.
+  var PRICING_API_URL = 'https://valeria-ai-bot.onrender.com/pricing.json';
 
   var selected = [];
   var preselectedFromLink = (new URLSearchParams(location.search).get('modules') || '')
