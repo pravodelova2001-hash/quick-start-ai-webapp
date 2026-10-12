@@ -110,9 +110,11 @@
     catch (e) { tg = null; } // старый клиент/нет нужных методов — работаем как вне Telegram
   }
 
-  // Единственный источник правды по модулям и ценам — должен совпадать
-  // с MODULES и PRICE_BY_COUNT в bot.py (там тот же комментарий в обратную
-  // сторону). При правке цены/описаний менять в обоих местах.
+  // Запасной вариант на случай, если /pricing.json недоступен (бот спит,
+  // нет сети) — тогда страница продолжает работать на этих данных.
+  // Источник правды по-прежнему один — бот (см. MODULES/PRICE_BY_COUNT в
+  // bot.py) — но если цену поменяют там и забудут здесь, разойдётся
+  // только запасной вариант, а не то, что видят живые пользователи.
   var MODULES = [
     { key: 'content', title: 'Контент', desc: 'Шаблоны постов и текстов + настройка AI-инструментов, чтобы генерировать новые каждый месяц самостоятельно.',
       bullets: ['10 готовых шаблонов на старте', '5 промптов для своих вариаций', 'Обновление каждый месяц'] },
@@ -125,10 +127,19 @@
   ];
   var PRICE_BY_COUNT = { 0: 0, 1: 990, 2: 1490, 3: 1790, 4: 1990 };
 
-  var selected = [];
-  var grid = document.getElementById('modules');
+  // Адрес бота — он же отдаёт /pricing.json. Подставьте настоящий хост
+  // сервиса на Render (без него просто всегда используется запасной
+  // вариант выше, страница по-прежнему работает).
+  var PRICING_API_URL = 'https://ЗАМЕНИТЬ-НА-ХОСТ-БОТА.onrender.com/pricing.json';
 
-  MODULES.forEach(function (m) {
+  var selected = [];
+  var preselectedFromLink = (new URLSearchParams(location.search).get('modules') || '')
+    .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  var grid = document.getElementById('modules');
+  var priceEl = document.getElementById('price');
+  var submitBtn = document.getElementById('submitBtn');
+
+  function renderModuleCard(m) {
     var el = document.createElement('div');
     el.className = 'mod';
     el.dataset.key = m.key;
@@ -154,30 +165,40 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
     grid.appendChild(el);
-  });
+    // Пришли по ссылке с лендинга с уже выбранными модулями — не
+    // заставляем выбирать второй раз, сразу отмечаем те же самые.
+    if (preselectedFromLink.indexOf(m.key) !== -1) { toggle(); }
+  }
 
   // Индивидуальный пакет — в той же карточной вёрстке, что и готовые
   // модули, но это не переключатель, а отдельное действие: нажали — заявка
   // ушла сразу, без выбора модулей и без цены в этой форме.
-  var customCard = document.createElement('div');
-  customCard.className = 'mod mod-custom';
-  customCard.setAttribute('role', 'button');
-  customCard.tabIndex = 0;
-  customCard.innerHTML =
-    '<div class="mod-top">' +
-      '<div class="mod-title">🎯 Индивидуальный пакет</div>' +
-      '<div class="arrow" aria-hidden="true">→</div>' +
-    '</div>' +
-    '<div class="mod-desc">Если нужное не укладывается в 4 модуля — собираем решение с нуля под вашу задачу, не по шаблону.</div>' +
-    '<ul class="mod-bullets"><li>От 3990 ₽/мес — точная сумма обсуждается отдельно</li></ul>';
-  customCard.addEventListener('click', function () { submitCustom(); });
-  customCard.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); submitCustom(); }
-  });
-  grid.appendChild(customCard);
+  function renderCustomCard() {
+    var customCard = document.createElement('div');
+    customCard.className = 'mod mod-custom';
+    customCard.setAttribute('role', 'button');
+    customCard.tabIndex = 0;
+    customCard.innerHTML =
+      '<div class="mod-top">' +
+        '<div class="mod-title">🎯 Индивидуальный пакет</div>' +
+        '<div class="arrow" aria-hidden="true">→</div>' +
+      '</div>' +
+      '<div class="mod-desc">Если нужное не укладывается в 4 модуля — собираем решение с нуля под вашу задачу, не по шаблону.</div>' +
+      '<ul class="mod-bullets"><li>От 3990 ₽/мес — точная сумма обсуждается отдельно</li></ul>';
+    customCard.addEventListener('click', function () { submitCustom(); });
+    customCard.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); submitCustom(); }
+    });
+    grid.appendChild(customCard);
+  }
 
-  var priceEl = document.getElementById('price');
-  var submitBtn = document.getElementById('submitBtn');
+  function renderModules() {
+    grid.innerHTML = '';
+    selected = [];
+    MODULES.forEach(renderModuleCard);
+    renderCustomCard();
+    render();
+  }
 
   function render() {
     var price = PRICE_BY_COUNT[selected.length];
@@ -190,7 +211,6 @@
       submitBtn.textContent = 'Готово → ' + price.toLocaleString('ru-RU') + ' ₽/мес';
     }
   }
-  render();
 
   // Отправка — не мгновенная (sendData + close), а двойной тап на мобильном
   // частый случай: без этого флага форма могла уйти боту дважды.
@@ -221,6 +241,36 @@
   document.getElementById('howBtn').addEventListener('click', function () {
     document.getElementById('howBox').classList.toggle('open');
   });
+
+  // Цены/модули лучше брать живыми у бота (единственный источник правды),
+  // чем хранить третью ручную копию — но если бот спит или сети нет,
+  // страница должна продолжать работать на запасных данных сверху.
+  function loadPricingThenRender() {
+    if (!PRICING_API_URL || PRICING_API_URL.indexOf('ЗАМЕНИТЬ') !== -1) {
+      renderModules();
+      return;
+    }
+    fetch(PRICING_API_URL).then(function (r) {
+      if (!r.ok) throw new Error('bad status');
+      return r.json();
+    }).then(function (data) {
+      if (data && data.modules && data.price_by_count) {
+        var fresh = [];
+        for (var key in data.modules) {
+          if (Object.prototype.hasOwnProperty.call(data.modules, key)) {
+            var m = data.modules[key];
+            fresh.push({ key: key, title: m.title, desc: m.includes, bullets: m.bullets });
+          }
+        }
+        if (fresh.length) { MODULES = fresh; }
+        PRICE_BY_COUNT = data.price_by_count;
+      }
+    }).catch(function () {
+      // тихо остаёмся на запасных данных — клиенту ошибку показывать незачем
+    }).finally(renderModules);
+  }
+
+  loadPricingThenRender();
 </script>
 </body>
 </html>
